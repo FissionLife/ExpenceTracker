@@ -7,7 +7,7 @@ action and every reply.
 - **How it works** (LangGraph flow, database, `uvicorn` to reply): [docs/FLOW.md](docs/FLOW.md)
 - **Technical Q&A** (database, FastAPI, MCP, LangGraph, architecture, why Telegram): [docs/TECH_QA.md](docs/TECH_QA.md)
 
-See the agent think: `uv run python scripts/show_flow.py` (no AI key needed), or `/flow on` in Telegram.
+See the agent think: `uv run python scripts/show_flow.py` (no AI key needed), or `/flow on` / `/flow code` in Telegram.
 
 ## Run it
 

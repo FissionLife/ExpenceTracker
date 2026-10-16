@@ -7,10 +7,27 @@ One page. Part 1 is the LangGraph agent, part 2 is the database, part 3 is the r
 
 | Where | How |
 |---|---|
-| **Terminal** | always on: every step prints one line, `[chat 123] planner: round 1: the AI picked 1 tool(s): log_expense(amount=450, ...)` |
-| **Telegram** | `/flow on`: every reply ends with "How I got here" (the same lines). `/flow off` hides it. `SHOW_FLOW=true` makes it the default |
+| **Terminal** | always on: every step prints one line **plus where it is in the code** (see below). `FLOW_CODE=false` hides the code lines |
+| **Telegram** | `/flow on`: every reply ends with "How I got here". `/flow code`: the same plus file:line and caller under each step. `/flow off` hides it. `SHOW_FLOW=true` makes `on` the default |
 | **Demo** | `uv run python scripts/show_flow.py` runs three messages through the real graph and prints the flow **and the database rows** after each step |
 | **Diagram** | `uv run python scripts/show_flow.py --graph` prints the real graph as Mermaid, so the picture cannot drift from the code |
+
+**What the terminal prints for one message** ("spent 450 on dinner"). Read the `at`/`from`/`calls`
+lines as: *this function ran* / *this function sent the graph here* / *and it calls these*:
+
+```
+planner: round 1: the AI picked 1 tool(s): log_expense(amount=450, category=Food & Dining)
+    at    app/bot/agent.py:1020 planner_node()
+    from  app/bot/agent.py:1259 route_after_ingress()  (it sent the graph here)
+    calls app/services_ai/tool_client.py:139 available_tools(), app/services_ai/ai_gateway.py:696 complete()
+executor: ran 1 tool(s): log_expense: inserted 1 transaction (expense Rs 450, ...); Cash balance now Rs 550
+    at    app/bot/agent.py:1230 executor_node()
+    from  app/bot/agent.py:1267 route_after_guard()  (it sent the graph here)
+    calls app/services_ai/tool_client.py:125 call_tool() -> app/services_ai/mcp_server.py:677 execute_tool()
+          -> app/services_ai/mcp_server.py:58 log_expense() -> app/services/ledger.py:238 record_transaction()
+```
+
+Line numbers are read from the running code, so they are always current.
 
 ---
 
@@ -52,8 +69,19 @@ flowchart TD
 executor forces `user_id`, and `ledger.py` re-validates and writes. The pause state is kept per chat in
 memory (`thread_id = chat_id`), so a restart drops a waiting question (by design).
 
-**Where:** `app/bot/agent.py` (graph and nodes), `app/bot/guardrails.py` (the checks),
-`app/bot/flow.py` (the lines you see).
+**Where each node lives** (the function names are stable; the terminal prints the current line numbers):
+
+| Node | Function | Sent here by | Calls |
+|---|---|---|---|
+| ingress | `agent.ingress_node` | the graph entry, after `process_user_interaction_ex` | `gr.check_input`, `_load_context`, `_history_dicts`, `prompts.build_planner_prompt` |
+| planner | `agent.planner_node` | `route_after_ingress`, `route_after_guard`, `route_after_executor` | `tool_client.available_tools`, `ai_gateway.complete` (the one AI call) |
+| guard | `agent.guard_node` | `route_after_planner` | `gr.check_call`, `confirmation_reason`, `_budget_overage_reason`, then `interrupt()` |
+| executor | `agent.executor_node` | `route_after_guard` | `tool_client.call_tool` -> `mcp_server.execute_tool` -> the tool -> `ledger.*` |
+| renderer | `agent.renderer_node` | any of the four `route_after_*` | `replies.compact`, `gr.leaks`, `gr.ungrounded_figures`, `gr.sanitize_reply` |
+
+The `route_after_*` functions are the graph's decisions (they return the name of the next node). The graph
+itself is wired in `agent.build_agent_graph`. Everything is in `app/bot/agent.py` except the checks
+(`app/bot/guardrails.py`) and the display (`app/bot/flow.py`).
 
 ---
 

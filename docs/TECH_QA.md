@@ -225,7 +225,7 @@ then server keys; automatic rotation and fallback; 9 providers; the model is dis
 Cost: 1 model call for a plain entry, 2 for a question or advice.
 
 **See the flow live.** Every step prints one line in the terminal (`[chat 123] planner: round 1: the AI
-picked log_expense(...)`), and `/flow on` shows the same lines under each Telegram reply. A one-page
+picked log_expense(...)`), and `/flow on` shows the same lines under each Telegram reply (`/flow code` adds file:line and who called it). A one-page
 explanation with the real diagram is `docs/FLOW.md`; `uv run python scripts/show_flow.py` demos it with no AI key.
 
 **How we know it works.** A 57-case evaluation with exact expected ledger outcomes

@@ -929,6 +929,7 @@ class AgentState(TypedDict, total=False):
     asked: bool  # the guard paused and the user answered (Yes or No)
     render_how: str  # how the reply was written (for the flow display)
     trace: list[str]  # one plain line per step, shown by /flow and in the terminal
+    trace_at: list[str]  # the matching code locations (file:line, caller, callees)
 
 
 def _load_context(chat_id: str) -> dict[str, Any]:
@@ -1401,6 +1402,7 @@ class Outcome:
     pending_id: str | None = None  # which question the Yes/Cancel buttons answer
     pay_alternative: dict[str, Any] | None = None  # {account, balance, args}: offer another account
     trace: list[str] = field(default_factory=list)  # the flow, one line per step
+    trace_at: list[str] = field(default_factory=list)  # where each step lives in the code
 
 
 def _config(chat_id: str) -> dict[str, Any]:
@@ -1443,6 +1445,7 @@ async def _outcome_from(chat_id: str, result: Any) -> Outcome:
     result = result if isinstance(result, dict) else {}
     runs = result.get("tool_runs") or []
     trace = list(result.get("trace") or [])
+    trace_at = list(result.get("trace_at") or [])
     payload = _interrupt_value(result.get("__interrupt__")) or await _pending_payload(chat_id)
     if payload is not None:
         done = [r for r in runs if r.get("result") and not r.get("error")]
@@ -1452,9 +1455,18 @@ async def _outcome_from(chat_id: str, result: Any) -> Outcome:
         )
         what = str(payload.get("description", "confirm")).replace("₹", "Rs ")
         paused = f"guard: paused, waiting for your Yes/Cancel ({what})"
-        return Outcome(text, _tx_ids(runs), True, payload.get("id"), None, [*trace, paused])
+        paused_at = "\n".join(flow.code_for("guard", {"trace": trace}, {}))
+        return Outcome(
+            text,
+            _tx_ids(runs),
+            True,
+            payload.get("id"),
+            None,
+            [*trace, paused],
+            [*trace_at, paused_at],
+        )
     text = result.get("reply_text") or "Done."
-    return Outcome(text, _tx_ids(runs), False, None, result.get("pay_alternative"), trace)
+    return Outcome(text, _tx_ids(runs), False, None, result.get("pay_alternative"), trace, trace_at)
 
 
 async def has_pending(chat_id: str) -> bool:

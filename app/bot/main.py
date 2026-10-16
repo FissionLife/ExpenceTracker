@@ -64,7 +64,7 @@ COMMAND_MENU: list[tuple[str, str]] = [
     ("keys", "Manage your AI keys"),
     ("setkey", "Add your AI key"),
     ("status", "AI and storage health"),
-    ("flow", "Show how the AI decides: /flow on or off"),
+    ("flow", "Show how the AI decides: /flow on, code or off"),
     ("help", "How to use WalletLedger"),
 ]
 # Commands that work but are not in the menu (the menu stays short; buttons cover most of these).
@@ -226,7 +226,11 @@ def _reply_for(outcome, chat_id: str | None = None) -> Reply:
             rows.append(ui.pay_alt_row(alt["account"], alt["balance"], alt["args"]))
     text = outcome.text
     if chat_id is not None and flow.enabled(chat_id):
-        text += flow.footer(getattr(outcome, "trace", []))
+        text += flow.footer(
+            getattr(outcome, "trace", []),
+            getattr(outcome, "trace_at", []),
+            flow.mode(chat_id) == "code",
+        )
     return Reply(text, rows=rows)
 
 
@@ -305,15 +309,17 @@ async def _view_command(chat_id: str, command: str, args: str) -> Reply | None:
     if command == "/plan":
         return await views.plan(chat_id, args)
     if command == "/flow":
-        wanted = {"on": True, "off": False}.get(args.strip().lower())
-        on = (not flow.enabled(chat_id)) if wanted is None else wanted
-        flow.set_enabled(chat_id, on)
-        return Reply(
-            "Flow display is ON: every reply now ends with the steps the agent took."
-            if on
-            else "Flow display is OFF. (The terminal still prints the steps.)",
-            rows=ui.back_home(),
+        word = args.strip().lower()
+        value = (
+            word if word in ("on", "off", "code") else ("off" if flow.enabled(chat_id) else "on")
         )
+        flow.set_mode(chat_id, value)
+        said = {
+            "on": "Flow display is ON: every reply ends with the steps the agent took.",
+            "code": "Flow display is ON with CODE: each step also shows its file, line and caller.",
+            "off": "Flow display is OFF. (The terminal still prints the steps.)",
+        }
+        return Reply(said[value], rows=ui.back_home())
     return None
 
 

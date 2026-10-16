@@ -55,12 +55,19 @@ def show_tables(title: str) -> None:
         )
 
 
+def show_trace(outcome) -> None:
+    """Each step, then where it lives in the code (file:line, who sent the graph there, what it calls)."""
+    for i, line in enumerate(outcome.trace, 1):
+        print(f"   {i}. {line}")
+        for part in (outcome.trace_at[i - 1] if i <= len(outcome.trace_at) else "").splitlines():
+            print(f"         {part}")
+
+
 def step(number: int, user_text: str, *answers):
     print(f"\n{'=' * 78}\n{number}. USER SAYS: {user_text!r}\n{'=' * 78}")
     with FakeLLM(*answers):
         outcome = asyncio.run(agent.process_user_interaction_ex(CHAT, user_text))
-    for i, line in enumerate(outcome.trace, 1):
-        print(f"   {i}. {line}")
+    show_trace(outcome)
     print(f"   -> reply: {outcome.text.splitlines()[0] if outcome.text else ''}")
     if outcome.needs_confirmation:
         print("   -> the graph is PAUSED here (interrupt), waiting for the user's Yes/Cancel")
@@ -69,6 +76,9 @@ def step(number: int, user_text: str, *answers):
 
 def demo() -> None:
     init_db()
+    print(
+        "(In this demo the AI is a fixed script, tests/fake_llm.py, so no key is needed;\n in a real run the planner step calls app/services_ai/ai_gateway.py complete().)"
+    )
     execute_tool(
         "log_income", user_id=CHAT, amount=20000, source_account="Bank", description="salary"
     )
@@ -94,8 +104,7 @@ def demo() -> None:
     if paused.needs_confirmation:
         print(f"\n{'=' * 78}\n3. USER TAPS YES\n{'=' * 78}")
         outcome = asyncio.run(agent.resume_pending(CHAT, True))
-        for i, line in enumerate(outcome.trace, 1):
-            print(f"   {i}. {line}")
+        show_trace(outcome)
         show_tables("after 3: two balances moved, one transfer row added")
 
 

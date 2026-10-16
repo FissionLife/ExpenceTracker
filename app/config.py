@@ -67,6 +67,8 @@ class Settings(BaseSettings):
     # Show the agent's step-by-step flow under every Telegram reply (a chat can switch it with /flow).
     # The terminal always prints the flow.
     show_flow: bool = False
+    # In the terminal, also print where each step lives in the code (file:line, who called it).
+    flow_code: bool = True
     # Full public URL Telegram should call, e.g. https://example.com/bot/webhook
     webhook_url: str = ""
     # Secret Telegram echoes back on every webhook call. Empty = derived from the bot token.

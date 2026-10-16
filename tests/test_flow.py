@@ -19,6 +19,7 @@ os.environ["TELEGRAM_BOT_TOKEN"] = ""
 import asyncio  # noqa: E402
 import unittest  # noqa: E402
 import uuid  # noqa: E402
+from pathlib import Path  # noqa: E402
 from unittest.mock import patch  # noqa: E402
 
 from app.bot import agent, flow  # noqa: E402
@@ -133,6 +134,52 @@ class TraceTests(FlowTestCase):
         self.assertEqual(outcome.trace, [])
 
 
+class CodeLocationTests(FlowTestCase):
+    """Each step also says which function ran, in which file and line, who sent the graph there."""
+
+    def entry(self):
+        return self.ask(
+            "spent 450 on dinner",
+            tool("log_expense", amount=450, category="Food & Dining", account_name="Cash"),
+        )
+
+    def test_every_step_has_a_code_location(self):
+        outcome = self.entry()
+        self.assertEqual(len(outcome.trace_at), len(outcome.trace))
+        for node, at in zip(NODES, outcome.trace_at, strict=True):
+            self.assertIn(f"{node}_node()", at)  # e.g. planner_node()
+            self.assertIn("app/bot/agent.py:", at)
+
+    def test_who_sent_the_graph_to_each_step(self):
+        at = self.entry().trace_at
+        self.assertIn("on_text()", at[0])  # the entry path: Telegram -> handle_incoming -> agent
+        self.assertIn("handle_incoming()", at[0])
+        self.assertIn("process_user_interaction_ex()", at[0])
+        self.assertIn("route_after_ingress()", at[1])
+        self.assertIn("route_after_planner()", at[2])
+        self.assertIn("route_after_guard()", at[3])
+        self.assertIn("route_after_executor()", at[4])
+
+    def test_the_executor_shows_the_whole_chain_down_to_the_ledger(self):
+        executor = self.entry().trace_at[3]
+        for name in ("call_tool()", "execute_tool()", "log_expense()", "record_transaction()"):
+            self.assertIn(name, executor)
+        self.assertLess(executor.index("call_tool()"), executor.index("record_transaction()"))
+
+    def test_the_line_number_points_at_the_def_not_the_decorator(self):
+        at = self.entry().trace_at[1]
+        line = int(at.split("agent.py:")[1].split(" ")[0])
+        source = (Path(agent.__file__)).read_text(encoding="utf-8").splitlines()
+        self.assertTrue(source[line - 1].lstrip().startswith("async def planner_node"))
+
+    def test_the_terminal_prints_the_code_lines_too(self):
+        with self.assertLogs("flow", level="INFO") as logs:
+            self.entry()
+        joined = "\n".join(logs.output)
+        self.assertIn("at    app/bot/agent.py:", joined)
+        self.assertIn("from  app/bot/agent.py:", joined)
+
+
 class TelegramTests(FlowTestCase):
     def test_flow_command_switches_the_footer_on_and_off(self):
         answer = tool("log_expense", amount=100, category="Food & Dining", account_name="Cash")
@@ -151,6 +198,19 @@ class TelegramTests(FlowTestCase):
         with FakeLLM(answer):
             hidden = run(bot.handle_incoming(self.chat, "spent 100 on tea")).text
         self.assertNotIn("How I got here", hidden)
+
+    def test_flow_code_adds_the_file_and_line_under_each_step(self):
+        answer = tool("log_expense", amount=100, category="Food & Dining", account_name="Cash")
+        run(bot.handle_incoming(self.chat, "/flow on"))
+        with FakeLLM(answer):
+            plain = run(bot.handle_incoming(self.chat, "spent 100 on tea")).text
+        self.assertNotIn("app/bot/agent.py", plain)
+
+        self.assertIn("CODE", run(bot.handle_incoming(self.chat, "/flow code")).text)
+        with FakeLLM(answer):
+            coded = run(bot.handle_incoming(self.chat, "spent 100 on tea")).text
+        self.assertIn("planner_node()", coded)
+        self.assertIn("record_transaction()", coded)
 
     def test_flow_alone_toggles(self):
         run(bot.handle_incoming(self.chat, "/flow"))

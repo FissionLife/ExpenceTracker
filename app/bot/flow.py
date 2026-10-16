@@ -6,20 +6,28 @@ describing what it decided or did is (1) printed to the terminal through the ``f
 or ``SHOW_FLOW=true``). The wrapper only reads the node's input and output: it never changes what
 the node does. Lines are plain ASCII on purpose, so they are safe in any terminal.
 
-Example, "spent 450 on dinner"::
+Example, "spent 450 on dinner" (the at / from / calls lines say where in the code that step is)::
 
-    ingress : loaded 2 accounts and 6 earlier messages; card/ID numbers masked
-    planner : round 1: the AI picked 1 tool: log_expense(amount=450, category=Food & Dining)
-    guard   : all checks passed, no approval needed
-    executor: log_expense: inserted 1 transaction (expense Rs 450, Food & Dining); Cash balance now Rs 550
-    renderer: reply written from a fixed template
+    planner: round 1: the AI picked 1 tool(s): log_expense(amount=450, category=Food & Dining)
+        at    app/bot/agent.py:1030 planner_node()
+        from  app/bot/agent.py:1262 route_after_ingress()  (it sent the graph here)
+        calls app/services_ai/ai_gateway.py:696 complete()  (the one AI call)
+    guard: all checks passed, no approval needed
+    executor: ran 1 tool(s): log_expense: inserted 1 transaction (...); Cash balance now Rs 550
+        at    app/bot/agent.py:1231 executor_node()
+        from  app/bot/agent.py:1268 route_after_guard()
+        calls tool_client.call_tool() -> mcp_server.execute_tool() -> mcp_server.log_expense()
+              -> ledger.record_transaction()
 """
 
 from __future__ import annotations
 
 import asyncio
 import functools
+import importlib
+import inspect
 import logging
+from pathlib import Path
 from typing import Any
 
 from langgraph.errors import GraphInterrupt
@@ -28,23 +36,38 @@ from app.config import settings
 
 flow_log = logging.getLogger("flow")
 
-_chat_setting: dict[str, bool] = {}  # per-chat /flow on|off; lost on restart (a display setting)
+ROOT = Path(__file__).resolve().parents[2]
+_chat_mode: dict[str, str] = {}  # per-chat /flow off|on|code; lost on restart (a display setting)
+
+
+def mode(chat_id: str) -> str:
+    """off = nothing under replies, on = the steps, code = the steps plus where each lives in the code."""
+    return _chat_mode.get(str(chat_id), "on" if settings.show_flow else "off")
 
 
 def enabled(chat_id: str) -> bool:
     """Should this chat's replies carry the "how I got here" lines?"""
-    return _chat_setting.get(str(chat_id), settings.show_flow)
+    return mode(chat_id) != "off"
+
+
+def set_mode(chat_id: str, value: str) -> None:
+    _chat_mode[str(chat_id)] = value
 
 
 def set_enabled(chat_id: str, on: bool) -> None:
-    _chat_setting[str(chat_id)] = on
+    set_mode(chat_id, "on" if on else "off")
 
 
-def footer(trace: list[str]) -> str:
-    """The lines as a short block under a Telegram reply."""
+def footer(trace: list[str], trace_at: list[str] | None = None, code: bool = False) -> str:
+    """The lines as a short block under a Telegram reply (with the code locations when ``code``)."""
     if not trace:
         return ""
-    return "\n\nHow I got here:\n" + "\n".join(f"{i}. {line}" for i, line in enumerate(trace, 1))
+    lines = []
+    for i, line in enumerate(trace, 1):
+        lines.append(f"{i}. {line}")
+        if code and trace_at and i <= len(trace_at) and trace_at[i - 1]:
+            lines.extend("      " + part for part in trace_at[i - 1].splitlines())
+    return "\n\nHow I got here:\n" + "\n".join(lines)
 
 
 # ------------------------------------------------------------------------------ wording
@@ -153,6 +176,117 @@ def describe(node: str, before: dict[str, Any], after: dict[str, Any]) -> str:
     return ""
 
 
+# ------------------------------------------------------------------------------ where in the code
+
+_MODULES = {
+    "agent": "app.bot.agent",
+    "gr": "app.bot.guardrails",
+    "keys": "app.bot.keys",
+    "main": "app.bot.main",
+    "telegram": "app.bot.telegram",
+    "replies": "app.bot.replies",
+    "gw": "app.services_ai.ai_gateway",
+    "prompts": "app.services_ai.prompts",
+    "tool_client": "app.services_ai.tool_client",
+    "mcp": "app.services_ai.mcp_server",
+    "ledger": "app.services.ledger",
+}
+
+# For each graph node: its function, and the main functions it calls (read it top to bottom).
+_NODES: dict[str, dict[str, Any]] = {
+    "ingress": {
+        "fn": "agent.ingress_node",
+        "calls": [
+            "keys.save_keys",
+            "gr.check_input",
+            "agent._load_context",
+            "agent._history_dicts",
+            "prompts.build_planner_prompt",
+        ],
+    },
+    "planner": {
+        "fn": "agent.planner_node",
+        "calls": ["tool_client.available_tools", "gw.complete"],
+    },
+    "guard": {
+        "fn": "agent.guard_node",
+        "calls": ["gr.check_call", "agent.confirmation_reason", "agent._budget_overage_reason"],
+    },
+    "executor": {"fn": "agent.executor_node", "calls": ["tool_client.call_tool"]},
+    "renderer": {
+        "fn": "agent.renderer_node",
+        "calls": ["replies.compact", "gr.leaks", "gr.ungrounded_figures", "gr.sanitize_reply"],
+    },
+}
+_ENTRY = ["telegram.on_text", "main.handle_incoming", "agent.process_user_interaction_ex"]
+
+# The ledger function behind each tool that changes data.
+_LEDGER = {
+    "log_expense": "record_transaction",
+    "log_income": "record_transaction",
+    "set_account_balance": "record_transaction",
+    "transfer_funds": "transfer_between_pipes",
+    "transfer_between_pipes": "transfer_between_pipes",
+    "delete_transaction": "undo_transaction",
+}
+
+
+def where(target: Any) -> str:
+    """A name like "agent.planner_node" (or the function itself) -> "app/bot/agent.py:1030 planner_node()"."""
+    try:
+        if isinstance(target, str):
+            alias, _, name = target.partition(".")
+            obj = getattr(importlib.import_module(_MODULES[alias]), name)
+        else:
+            obj = target
+        obj = inspect.unwrap(obj)
+        path = Path(inspect.getsourcefile(obj)).resolve()
+        lines, start = inspect.getsourcelines(obj)
+        # a decorated function starts at its decorator: point at the def line instead
+        offset = next(
+            (i for i, s in enumerate(lines) if s.lstrip().startswith(("def ", "async def "))), 0
+        )
+        return f"{path.relative_to(ROOT).as_posix()}:{start + offset} {obj.__name__}()"
+    except Exception:
+        return str(target)
+
+
+def _tool_chain(name: str) -> str:
+    """tool_client.call_tool -> execute_tool -> the tool's own function -> the ledger function."""
+    from app.services_ai import mcp_server, tool_client
+
+    parts = [where("tool_client.call_tool")]
+    if tool_client.mode() == "mcp":
+        parts.append("MCP server process (python -m app.services_ai.mcp_transport)")
+    else:
+        parts.append(where("mcp.execute_tool"))
+    handler = mcp_server.TOOL_REGISTRY.get(name)
+    if handler is not None:
+        parts.append(where(handler))
+    if name in _LEDGER:
+        parts.append(where(f"ledger.{_LEDGER[name]}"))
+    return " -> ".join(parts)
+
+
+def code_for(node: str, before: dict[str, Any], after: dict[str, Any]) -> list[str]:
+    """Where this step lives in the code: the function, who sent the graph here, what it calls."""
+    spec = _NODES[node]
+    lines = [f"at    {where(spec['fn'])}"]
+    if node == "ingress":
+        lines.append("from  " + " -> ".join(where(r) for r in _ENTRY))
+    else:
+        previous = (before.get("trace") or [""])[-1].split(":")[0] or "ingress"
+        lines.append(f"from  {where(f'agent.route_after_{previous}')}  (it sent the graph here)")
+    if node == "executor":
+        count = int(after.get("last_round") or 0)
+        runs = (after.get("tool_runs") or [])[-count:] if count else []
+        for run in runs:
+            lines.append(f"calls {_tool_chain(run['tool_name'])}")
+    else:
+        lines.append("calls " + ", ".join(where(c) for c in spec["calls"]))
+    return lines
+
+
 # ------------------------------------------------------------------------------ decorator
 
 
@@ -160,8 +294,17 @@ def _record(node: str, state: dict[str, Any], update: dict[str, Any]) -> dict[st
     try:
         line = f"{node}: {describe(node, state, update)}"
         flow_log.info("[chat %s] %s", state.get("chat_id", "?"), line)
+        at = ""
+        try:
+            at = "\n".join(code_for(node, state, update))
+            if settings.flow_code:
+                for part in at.splitlines():
+                    flow_log.info("[chat %s]     %s", state.get("chat_id", "?"), part)
+        except Exception:
+            flow_log.debug("could not locate %s", node, exc_info=True)
         base = [] if node == "ingress" else list(state.get("trace") or [])
-        return {**update, "trace": [*base, line]}
+        base_at = [] if node == "ingress" else list(state.get("trace_at") or [])
+        return {**update, "trace": [*base, line], "trace_at": [*base_at, at]}
     except Exception:  # showing the flow must never break a message
         flow_log.debug("could not describe %s", node, exc_info=True)
         return update
