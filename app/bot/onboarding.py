@@ -246,44 +246,6 @@ async def set_balance(chat_id: str, account: str, amount: float) -> Reply:
     return Reply(f"👍 {account} starts at {fmt.inr(balance)}.\n\n{_ready(account)}")
 
 
-def _set_balance_to(
-    chat_id: str, account_words: str, target: float
-) -> tuple[str, float, float, str | None]:
-    """Make the named account hold `target`: records the difference as an opening balance or adjustment."""
-    with SessionLocal() as db:
-        user = ledger.get_or_create_user(db, chat_id)
-        name = pick_account(account_words) if account_words else None
-        name = name or user.default_account or FALLBACK_ACCOUNT
-        account = ledger.get_or_create_account(db, user.id, name)
-        before = round(account.balance, 2)
-        diff = round(target - before, 2)
-        if abs(diff) < 0.005:
-            return name, before, before, None
-        has_opening = db.scalar(
-            select(func.count())
-            .select_from(Transaction)
-            .where(Transaction.user_id == user.id, Transaction.account_id == account.id)
-        )
-        if diff > 0:
-            category = OPENING_CATEGORY if not has_opening else ADJUSTMENT_CATEGORY
-            result = ledger.record_transaction(
-                db, user.id, diff, name, category, None, "income", "Balance set by you", "manual"
-            )
-        else:
-            result = ledger.record_transaction(
-                db,
-                user.id,
-                -diff,
-                name,
-                ADJUSTMENT_CATEGORY,
-                None,
-                "expense",
-                "Balance set by you",
-                "manual",
-            )
-        return name, before, result["new_balance"], result["transaction_id"]
-
-
 def _ready(account: str) -> str:
     return (
         "You're all set. Just tell me things like:\n"

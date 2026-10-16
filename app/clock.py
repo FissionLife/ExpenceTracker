@@ -35,10 +35,6 @@ def tz() -> tzinfo:
     return _zone((settings.timezone or "UTC").strip() or "UTC")
 
 
-def now_utc() -> datetime:
-    return datetime.now(UTC).replace(tzinfo=None)
-
-
 def now_local() -> datetime:
     return datetime.now(tz()).replace(tzinfo=None)
 

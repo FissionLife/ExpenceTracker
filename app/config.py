@@ -64,6 +64,9 @@ class Settings(BaseSettings):
     telegram_bot_tokens: str = ""
     # False = long polling (local dev). True = webhook (production, needs a public HTTPS URL).
     use_webhook: bool = False
+    # Show the agent's step-by-step flow under every Telegram reply (a chat can switch it with /flow).
+    # The terminal always prints the flow.
+    show_flow: bool = False
     # Full public URL Telegram should call, e.g. https://example.com/bot/webhook
     webhook_url: str = ""
     # Secret Telegram echoes back on every webhook call. Empty = derived from the bot token.

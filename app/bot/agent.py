@@ -45,7 +45,7 @@ from langgraph.types import Command, interrupt
 from sqlalchemy import select
 
 from app import clock
-from app.bot import fmt, replies
+from app.bot import flow, fmt, replies
 from app.bot import guardrails as gr
 from app.bot.categories import EXPENSE_CATEGORIES, canonical_category
 from app.bot.keys import save_keys
@@ -926,6 +926,9 @@ class AgentState(TypedDict, total=False):
     rejected: bool  # the tool guardrail threw every proposed call away this round
     off_topic_mixed: bool  # the message mixed money requests with an off-topic part
     off_topic_confirmed: bool  # the user already said Yes to the money part of such a message
+    asked: bool  # the guard paused and the user answered (Yes or No)
+    render_how: str  # how the reply was written (for the flow display)
+    trace: list[str]  # one plain line per step, shown by /flow and in the terminal
 
 
 def _load_context(chat_id: str) -> dict[str, Any]:
@@ -964,6 +967,7 @@ def _history_dicts(chat_id: str, user_text: str) -> list[dict[str, Any]]:
     return out
 
 
+@flow.traced("ingress")
 async def ingress_node(state: AgentState) -> dict[str, Any]:
     """No LLM: key paste short-circuit, persona command, context + history, per-turn reset."""
     chat_id = str(state.get("chat_id", ""))
@@ -980,6 +984,8 @@ async def ingress_node(state: AgentState) -> dict[str, Any]:
         "rejected": False,
         "off_topic_mixed": False,
         "off_topic_confirmed": False,
+        "asked": False,
+        "render_how": "",
         "persona": None,
     }
     if extract_api_keys(text):
@@ -1009,6 +1015,7 @@ def _parse_args(raw: Any) -> dict[str, Any]:
     return data if isinstance(data, dict) else {}
 
 
+@flow.traced("planner")
 async def planner_node(state: AgentState) -> dict[str, Any]:
     """One LLM call: conversation + tool schema -> tool calls (to guard) or final text."""
     chat_id = str(state.get("chat_id", ""))
@@ -1123,6 +1130,7 @@ def _pending_id(chat_id: str, calls: list[dict[str, Any]]) -> str:
     return hashlib.sha1(raw.encode()).hexdigest()[:6]
 
 
+@flow.traced("guard")
 def guard_node(state: AgentState) -> dict[str, Any]:
     """No LLM: pause with interrupt() when any proposed call needs the user's Yes.
 
@@ -1203,13 +1211,21 @@ def guard_node(state: AgentState) -> dict[str, Any]:
             "proposed": calls,
             "rejected": rejected,
             "off_topic_confirmed": bool(state.get("off_topic_confirmed")) or ask_mixed,
+            "asked": True,
         }
     convo = list(state.get("convo") or [])
     for c in calls:
         convo.append({"role": "tool", "tool_call_id": c["id"], "content": "cancelled by the user"})
-    return {"declined": True, "convo": convo, "proposed": [], "reply_text": replies.CANCELLED}
+    return {
+        "declined": True,
+        "convo": convo,
+        "proposed": [],
+        "reply_text": replies.CANCELLED,
+        "asked": True,
+    }
 
 
+@flow.traced("executor")
 async def executor_node(state: AgentState) -> dict[str, Any]:
     """No LLM: run the approved calls (user_id injected), one tool message per call."""
     chat_id = str(state.get("chat_id", ""))
@@ -1268,6 +1284,7 @@ def route_after_executor(state: AgentState) -> Literal["planner", "renderer"]:
     return "renderer"
 
 
+@flow.traced("renderer")
 def renderer_node(state: AgentState) -> dict[str, Any]:
     """No LLM: planner text, else fixed templates; then the persona header and budget note."""
     runs = state.get("tool_runs") or []
@@ -1288,12 +1305,18 @@ def renderer_node(state: AgentState) -> dict[str, Any]:
             {"tool_name": last["tool_name"], "tool_result": last["result"], "error": last["error"]}
         )["response_text"]
     text = text or "Done."
+    how = (
+        "the AI's own words (figures checked against your data)"
+        if from_planner
+        else "a fixed template"
+    )
     if from_planner:  # output guardrail: only LLM-written text can invent figures or leak
         chat_id = str(state.get("chat_id", ""))
         found = gr.leaks(text, chat_id)
         if found:
             logger.warning("Output guardrail blocked a leak for %s: %s", chat_id, found)
             text, from_planner = gr.LEAK_TEXT, False
+            how = "a safe text (the AI reply looked like a leak)"
         else:
             bad = gr.ungrounded_figures(
                 text,
@@ -1320,6 +1343,7 @@ def renderer_node(state: AgentState) -> dict[str, Any]:
                         }
                     )["response_text"]
                 text, from_planner = fallback or gr.GROUNDING_FALLBACK_TEXT, False
+                how = "a template, because the AI's figures did not match your data"
     text = gr.sanitize_reply(text)
     if state.get("off_topic_mixed") and not state.get("declined") and gr.OFF_TOPIC_NOTE not in text:
         text = (
@@ -1337,7 +1361,7 @@ def renderer_node(state: AgentState) -> dict[str, Any]:
             note = None
         if note:
             text = f"{text}\n{note}"
-    return {"reply_text": text}
+    return {"reply_text": text, "render_how": how}
 
 
 def build_agent_graph():
@@ -1376,6 +1400,7 @@ class Outcome:
     needs_confirmation: bool = False
     pending_id: str | None = None  # which question the Yes/Cancel buttons answer
     pay_alternative: dict[str, Any] | None = None  # {account, balance, args}: offer another account
+    trace: list[str] = field(default_factory=list)  # the flow, one line per step
 
 
 def _config(chat_id: str) -> dict[str, Any]:
@@ -1417,6 +1442,7 @@ async def _outcome_from(chat_id: str, result: Any) -> Outcome:
     """Turn a graph run (finished or paused on a confirmation) into an Outcome."""
     result = result if isinstance(result, dict) else {}
     runs = result.get("tool_runs") or []
+    trace = list(result.get("trace") or [])
     payload = _interrupt_value(result.get("__interrupt__")) or await _pending_payload(chat_id)
     if payload is not None:
         done = [r for r in runs if r.get("result") and not r.get("error")]
@@ -1424,9 +1450,11 @@ async def _outcome_from(chat_id: str, result: Any) -> Outcome:
         text = (f"{prefix}\n\n" if prefix else "") + replies.confirm_prompt(
             payload.get("description", "Go ahead")
         )
-        return Outcome(text, _tx_ids(runs), True, payload.get("id"), None)
+        what = str(payload.get("description", "confirm")).replace("₹", "Rs ")
+        paused = f"guard: paused, waiting for your Yes/Cancel ({what})"
+        return Outcome(text, _tx_ids(runs), True, payload.get("id"), None, [*trace, paused])
     text = result.get("reply_text") or "Done."
-    return Outcome(text, _tx_ids(runs), False, None, result.get("pay_alternative"))
+    return Outcome(text, _tx_ids(runs), False, None, result.get("pay_alternative"), trace)
 
 
 async def has_pending(chat_id: str) -> bool:

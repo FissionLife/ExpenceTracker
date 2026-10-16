@@ -11,7 +11,7 @@ after the model.
 | Fact to remember | Value |
 |---|---|
 | Stack | Python 3.14, FastAPI, aiogram (Telegram), LangGraph, LiteLLM, MCP, SQLAlchemy 2 |
-| Database | SQLite by default, PostgreSQL in production, 8 tables |
+| Database | SQLite by default, PostgreSQL in production, 7 tables |
 | Tools the AI can call | 20 distinct (21 registry entries, one is an alias) |
 | Agent graph | 5 nodes, 1 LLM call per plain entry, max 5 planner rounds per message |
 | Asks "are you sure?" | transfer of ₹5,000 or more, any edit, any delete, budget overspend |
@@ -26,14 +26,13 @@ after the model.
 **PostgreSQL** (production), chosen by one setting, `DATABASE_URL`. Files: `app/db.py`, `app/models.py`
 (the models are the schema; tables are created at startup).
 
-**The 8 tables.**
+**The 7 tables.**
 
 ```mermaid
 erDiagram
     users ||--o{ accounts : owns
     users ||--o{ categories : owns
     users ||--o{ merchants : owns
-    users ||--o{ subscriptions : owns
     users ||--o{ transactions : owns
     users ||--o{ api_keys : owns
     users ||--o{ chat_messages : owns
@@ -42,7 +41,7 @@ erDiagram
     merchants ||--o{ transactions : "paid to"
 ```
 
-`users` is one row per Telegram chat id. `accounts` are the "pipes" (Cash, Bank, cards) and hold the
+`users` is one row per Telegram chat id (recurring bills are detected from `transactions`, not stored). `accounts` are the "pipes" (Cash, Bank, cards) and hold the
 balance. `transactions` is every expense, income and transfer. `api_keys` holds the user's own AI keys.
 `chat_messages` is the short conversation history the agent reloads (last 20).
 
@@ -65,6 +64,9 @@ leave a balance changed without its transaction row.
 `api_keys.encrypted_key` (Fernet, key derived with HKDF from `SECRET_KEY`, `enc1:` prefix, rotation with
 `scripts/protect_data.py`). Consequence to know: **encrypted columns cannot be used in `WHERE`/`ORDER BY`**,
 so text search runs in Python after decrypting.
+
+**See it happen:** `uv run python scripts/show_flow.py` prints the raw rows after each step, including
+the encrypted `enc1:` descriptions; `docs/FLOW.md` explains the write path.
 
 **Questions you will be asked.**
 - *Why not MongoDB / a cloud DB?* Relational integrity and aggregations are the job; Postgres is the
@@ -176,7 +178,7 @@ The stdio MCP mode is per-process and optional.
 ## 4. LangGraph (the agent)
 
 **What it is here.** The agent is a small **state graph** with five nodes, in `app/bot/agent.py`.
-Design notes live in `docs/AGENT_GRAPH.md` of the full WalletLedger repository.
+One-page explanation: `docs/FLOW.md`.
 
 ```mermaid
 flowchart LR
@@ -221,6 +223,10 @@ question expires after 5 minutes; a new request cancels the old one.
 then server keys; automatic rotation and fallback; 9 providers; the model is discovered from the key
 (no hard-coded model names). **Bring-your-own-key**: the operator does not pay for everyone's usage.
 Cost: 1 model call for a plain entry, 2 for a question or advice.
+
+**See the flow live.** Every step prints one line in the terminal (`[chat 123] planner: round 1: the AI
+picked log_expense(...)`), and `/flow on` shows the same lines under each Telegram reply. A one-page
+explanation with the real diagram is `docs/FLOW.md`; `uv run python scripts/show_flow.py` demos it with no AI key.
 
 **How we know it works.** A 57-case evaluation with exact expected ledger outcomes
 (the `evals/` folder of the full WalletLedger repository). Latest: **47/53** model-backed cases and 4/4 no-AI cases; 100% tool
@@ -346,7 +352,7 @@ flowchart LR
 |---|---|
 | Server and startup | `main.py` |
 | Telegram adapter, router | `app/bot/telegram.py`, `app/bot/main.py` |
-| Agent graph, guardrails | `app/bot/agent.py`, `app/bot/guardrails.py` |
+| Agent graph, guardrails, flow display | `app/bot/agent.py`, `app/bot/guardrails.py`, `app/bot/flow.py` |
 | Tools and MCP | `app/services_ai/mcp_server.py`, `tool_client.py`, `mcp_transport.py` |
 | Model access | `app/services_ai/ai_gateway.py`, `prompts.py` |
 | Money rules | `app/services/ledger.py` |

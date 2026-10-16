@@ -22,7 +22,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 
 from app import clock
-from app.bot import agent, onboarding, ui, views
+from app.bot import agent, flow, onboarding, ui, views
 from app.bot.agent import process_user_interaction_ex
 from app.bot.keys import KEY_COMMANDS, handle_admin_command, handle_key_command
 from app.bot.ui import Reply
@@ -64,6 +64,7 @@ COMMAND_MENU: list[tuple[str, str]] = [
     ("keys", "Manage your AI keys"),
     ("setkey", "Add your AI key"),
     ("status", "AI and storage health"),
+    ("flow", "Show how the AI decides: /flow on or off"),
     ("help", "How to use WalletLedger"),
 ]
 # Commands that work but are not in the menu (the menu stays short; buttons cover most of these).
@@ -202,11 +203,14 @@ async def handle_incoming(chat_id: str, text: str) -> Reply:
 
     # Everything else in plain words (entries, questions, corrections, "bank balance is 25000",
     # "use cash by default", a typed yes/no) is understood by the AI agent, not by rules.
-    return _reply_for(await process_user_interaction_ex(chat_id=chat_id, text=clean))
+    return _reply_for(await process_user_interaction_ex(chat_id=chat_id, text=clean), chat_id)
 
 
-def _reply_for(outcome) -> Reply:
-    """Text plus the right buttons: Yes/Cancel for a question, Undo for what was just recorded."""
+def _reply_for(outcome, chat_id: str | None = None) -> Reply:
+    """Text plus the right buttons: Yes/Cancel for a question, Undo for what was just recorded.
+
+    With /flow on (or SHOW_FLOW=true) the agent's steps are added under the text.
+    """
     rows: list[list[ui.Btn]] = []
     if outcome.needs_confirmation:
         rows = ui.confirm_rows(outcome.pending_id)
@@ -220,7 +224,10 @@ def _reply_for(outcome) -> Reply:
             rows.append(ui.cancel_row())
         else:
             rows.append(ui.pay_alt_row(alt["account"], alt["balance"], alt["args"]))
-    return Reply(outcome.text, rows=rows)
+    text = outcome.text
+    if chat_id is not None and flow.enabled(chat_id):
+        text += flow.footer(getattr(outcome, "trace", []))
+    return Reply(text, rows=rows)
 
 
 async def answer_pending_import(chat_id: str, decision: str) -> Reply:
@@ -245,7 +252,7 @@ async def answer_pending_action(chat_id: str, yes: bool, pending_id: str | None 
             notice="Expired",
             rows=ui.back_home(),
         )
-    return _reply_for(outcome)
+    return _reply_for(outcome, chat_id)
 
 
 async def handle_text(chat_id: str, text: str) -> str:
@@ -297,6 +304,16 @@ async def _view_command(chat_id: str, command: str, args: str) -> Reply | None:
         return await views.dashboard(chat_id)
     if command == "/plan":
         return await views.plan(chat_id, args)
+    if command == "/flow":
+        wanted = {"on": True, "off": False}.get(args.strip().lower())
+        on = (not flow.enabled(chat_id)) if wanted is None else wanted
+        flow.set_enabled(chat_id, on)
+        return Reply(
+            "Flow display is ON: every reply now ends with the steps the agent took."
+            if on
+            else "Flow display is OFF. (The terminal still prints the steps.)",
+            rows=ui.back_home(),
+        )
     return None
 
 

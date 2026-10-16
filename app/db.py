@@ -72,7 +72,6 @@ _ADDED_INDEXES = [
     ("ix_categories_user", "categories", "user_id"),
     ("ix_merchants_user", "merchants", "user_id"),
     ("ix_api_keys_user", "api_keys", "user_id"),
-    ("ix_subscriptions_user", "subscriptions", "user_id"),
 ]
 
 
@@ -151,12 +150,3 @@ def init_db():
     except Exception:  # a convenience migration must never block startup
         logger.warning("Could not reconcile aliased budgets", exc_info=True)
     logger.info("Database ready: %s", describe_database())
-
-
-def get_db():
-    """Dependency for yielding database sessions."""
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
