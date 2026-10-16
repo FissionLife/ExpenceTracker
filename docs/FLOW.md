@@ -3,6 +3,13 @@
 One page. Part 1 is the LangGraph agent, part 2 is the database, part 3 is the run from
 `uvicorn main:app` to a reply. For likely questions and answers see [TECH_QA.md](TECH_QA.md).
 
+## Find any function
+
+[CODE_MAP.md](CODE_MAP.md) lists **every function with its line, what it does, who calls it and what it calls**,
+starting with the path of one message from `uvicorn` to the reply. In a terminal:
+`uv run python scripts/code_map.py who planner_node` (works for any name). It is generated from the code,
+so re-run `uv run python scripts/code_map.py` after changes.
+
 ## See it live (no AI key needed)
 
 | Where | How |

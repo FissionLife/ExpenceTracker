@@ -5,6 +5,7 @@ message, a small set of ledger tools acts on a SQL database, and deterministic g
 action and every reply.
 
 - **How it works** (LangGraph flow, database, `uvicorn` to reply): [docs/FLOW.md](docs/FLOW.md)
+- **Every function, who calls it, what it calls:** [docs/CODE_MAP.md](docs/CODE_MAP.md); in a terminal `uv run python scripts/code_map.py who <function>`
 - **Technical Q&A** (database, FastAPI, MCP, LangGraph, architecture, why Telegram): [docs/TECH_QA.md](docs/TECH_QA.md)
 
 See the agent think: `uv run python scripts/show_flow.py` (no AI key needed), or `/flow on` / `/flow code` in Telegram.
