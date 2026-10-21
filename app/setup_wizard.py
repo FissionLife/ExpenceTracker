@@ -261,7 +261,9 @@ def step_database(io: Console, path: Path) -> None:
         mode = "sqlite"
     envfile.set_values(path, {"DB_MODE": mode})
     if mode == "postgres":
-        io.say("  Start it with:  docker compose up -d   (settings are in .env: POSTGRES_*)")
+        io.say(
+            "  Make sure a PostgreSQL server is running (connection settings are in .env: POSTGRES_*)"
+        )
 
 
 def step_tool_mode(io: Console, path: Path) -> None:

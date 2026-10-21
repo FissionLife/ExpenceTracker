@@ -6,7 +6,9 @@ from datetime import datetime
 from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, String, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
-from app.crypto import EncryptedText  # encrypted at rest, plaintext in Python (docs/SECURITY.md)
+from app.crypto import (
+    EncryptedText,  # encrypted at rest, plaintext in Python (docs/TECH_QA.md, section 1)
+)
 
 
 class Base(DeclarativeBase):

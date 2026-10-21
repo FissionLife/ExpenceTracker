@@ -2,7 +2,7 @@
 
 Offline: the LLM is ``FakeLLM`` (tests/fake_llm.py), so each test states what the "AI" decided and
 asserts what the guardrails let through. Whether a REAL model chooses ``decline_off_topic`` is an
-eval question (evals/golden.jsonl, group ``llm_off_topic``), not a unit-test one.
+evaluation question (the full repository's golden set, group ``llm_off_topic``), not a unit-test one.
 """
 
 import os

@@ -31,22 +31,8 @@ env/
 .mypy_cache/
 .coverage
 htmlcov/
-graphify-out/cache/
-graphify-out/.graphify_labels.pending.json
-graphify-out/.graphify_labels.json.sig
 
 # Local tooling / agent state
 .remember/
 .claude/
 out_charts/
-site/docs/
-
-!site/**/*.png
-
-# Eval runs: keep the .md summaries and latest-*.json; the dated .json copies are duplicates
-evals/reports/report-*.json
-
-# Cloudflare worker local files
-cloudflare/node_modules/
-cloudflare/.wrangler/
-cloudflare/.dev.vars

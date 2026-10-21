@@ -10,7 +10,6 @@ Statement import pipeline (no AI, no network):
            generic                        tries all of the above and keeps the best result
       -> rows (dicts) with date, merchant, type, amount, category, description, format.
 
-Debug a real file with:  uv run python scripts/inspect_statement.py statement.pdf --text
 """
 
 from __future__ import annotations

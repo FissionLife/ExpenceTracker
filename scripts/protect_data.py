@@ -14,7 +14,7 @@ app, run ``rotate``, then remove SECRET_KEY_OLD.
 
 BACK UP THE DATABASE FIRST (copy walletledger.db, or pg_dump). Restoring the backup undoes
 everything this script does. It never prints user text. Works with SQLite and PostgreSQL through
-the app's own database settings. See docs/SECURITY.md.
+the app's own database settings. See docs/TECH_QA.md (section 1, encryption at rest).
 """
 
 from __future__ import annotations
@@ -228,7 +228,7 @@ def main(argv: list[str] | None = None) -> int:
             parts = ", ".join(f"{k}: {v}" for k, v in sorted(counts.items())) or "no rows"
             print(f"  {column:<28} {parts}")
         if crypto.weak_secret_key():
-            print("Warning: SECRET_KEY is weak or the public default; see docs/SECURITY.md.")
+            print("Warning: SECRET_KEY is weak or the public default; set a long random one.")
         return 0
 
     if not _key_ok(args):

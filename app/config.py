@@ -41,7 +41,7 @@ class Settings(BaseSettings):
 
     # Database: pick ONE backend with DB_MODE, or give a full DATABASE_URL (which wins).
     #   DB_MODE=sqlite   -> a local file (SQLITE_PATH). Zero setup; best for dev and single-user.
-    #   DB_MODE=postgres -> POSTGRES_* settings (works with docker-compose.yml).
+    #   DB_MODE=postgres -> POSTGRES_* settings (a PostgreSQL server you run).
     db_mode: Literal["sqlite", "postgres"] = "sqlite"
     sqlite_path: str = "./walletledger.db"
     postgres_user: str = "postgres"

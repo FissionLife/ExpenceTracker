@@ -1,4 +1,4 @@
-"""Encryption at rest for WalletLedger. One small module, explained in docs/SECURITY.md.
+"""Encryption at rest for WalletLedger. One small module, explained in docs/TECH_QA.md (section 1, encryption at rest).
 
 What it does:
 

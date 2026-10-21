@@ -758,21 +758,21 @@ Cross-checked on 2026-10-16 against graphify's own graph of this project: it fou
 
 ### `app/models.py`
 
-- `L12` `Base`  
+- `L14` `Base`  
   called by: - | calls: -
-- `L16` `User`  
+- `L18` `User`  
   called by: ~agent._budget_note_for, ~agent._find_user, ~agent._pay_alternative, ~agent.get_db_conversation_history, ~agent.save_db_chat_message, ~keys._admin_stats, ~onboarding.default_account, +4 more | calls: -
-- `L44` `Account`  
+- `L46` `Account`  
   called by: ~agent._load_context, ~agent._pay_alternative, ~analytics.balances, ~ledger._adjust_balance, ~ledger.get_account_balances, ~ledger.get_or_create_account, ledger.get_or_create_user, +5 more | calls: -
-- `L61` `Category`  
+- `L63` `Category`  
   called by: ~db._move_aliased_budgets, ~analytics.budget_status, ~analytics.load_rows, ~ledger.get_or_create_category, ~ledger.resolve_category, ~mcp_server.list_categories, ~mcp_server.search_transactions | calls: -
-- `L76` `Merchant`  
+- `L78` `Merchant`  
   called by: ~main._drop_already_imported, ~analytics.load_rows, ~ledger.get_or_create_merchant, ~mcp_server.search_transactions, ~transaction_parser._learned_category | calls: -
-- `L89` `Transaction`  
+- `L91` `Transaction`  
   called by: ~keys._admin_stats, ~main._drop_already_imported, ~onboarding.is_new_user, ~analytics.load_rows, ~ledger.get_spending_summary, ~ledger.recent_transactions, ledger.record_transaction, +6 more | calls: -
-- `L135` `ApiKey`  
+- `L137` `ApiKey`  
   called by: ~ai_gateway._load_user_keys, ~ai_gateway._owned_key, ~ai_gateway.add_api_key, ~ai_gateway.list_api_keys, mcp_server.save_user_api_key | calls: -
-- `L150` `ChatMessage`  
+- `L152` `ChatMessage`  
   called by: ~agent.get_db_conversation_history, agent.save_db_chat_message | calls: -
 
 ### `app/services/analytics.py`
@@ -1228,119 +1228,119 @@ Cross-checked on 2026-10-16 against graphify's own graph of this project: it fou
 
 - `L1` *(runs when the file is imported)*  
   called by: - | calls: transaction_parser._wordset, transaction_parser._build_index
-- `L76` `_to_float`  
+- `L75` `_to_float`  
   called by: transaction_parser._block_amount, transaction_parser._money_tokens, transaction_parser._parse_line_entry | calls: -
-- `L80` `_month`  
+- `L79` `_month`  
   called by: transaction_parser._date_from_match | calls: -
-- `L97` `_date_from_match`  
+- `L96` `_date_from_match`  
   called by: transaction_parser._leading_date, transaction_parser._parse_block, transaction_parser._parse_date | calls: transaction_parser._month, clock.today_local
-- `L119` `_parse_date`  
+- `L118` `_parse_date`  
   called by: transaction_parser._parse_line_entry | calls: transaction_parser._date_from_match
-- `L124` `_leading_date` — (iso date, end offset) when the line begins with a date (optionally after a serial no.).  
+- `L123` `_leading_date` — (iso date, end offset) when the line begins with a date (optionally after a serial no.).  
   called by: transaction_parser._bank_row_count, transaction_parser._parse_app_blocks, transaction_parser._parse_bank_table | calls: transaction_parser._date_from_match
-- `L137` `_blank_dates`  
+- `L136` `_blank_dates`  
   called by: transaction_parser._block_amount, transaction_parser._money_tokens, transaction_parser._name_from_phrase, transaction_parser._parse_bank_table, transaction_parser._parse_block, transaction_parser._parse_line_entry | calls: -
-- `L160` `_normalize_line`  
+- `L159` `_normalize_line`  
   called by: transaction_parser._numbered_lines, transaction_parser._sms_entries, transaction_parser.parse_receipt_text | calls: -
-- `L172` `_numbered_lines`  
+- `L171` `_numbered_lines`  
   called by: transaction_parser._sms_entries, transaction_parser.detect_statement_format, transaction_parser.parse_receipt_text, transaction_parser.parse_statement_text | calls: transaction_parser._normalize_line
-- `L181` `_guess_year`  
+- `L180` `_guess_year`  
   called by: transaction_parser.parse_receipt_text, transaction_parser.parse_statement_text | calls: -
-- `L191` `_wordset`  
+- `L190` `_wordset`  
   called by: transaction_parser (module level) | calls: -
-- `L219` `_display_name`  
+- `L218` `_display_name`  
   called by: transaction_parser._merchant_from_vpa, transaction_parser._name_from_phrase, transaction_parser.merchant_from_narration | calls: -
-- `L228` `_clean_merchant`  
+- `L227` `_clean_merchant`  
   called by: transaction_parser._parse_line_entry, transaction_parser._sms_merchant | calls: -
-- `L239` `_merchant_from_vpa`  
+- `L238` `_merchant_from_vpa`  
   called by: transaction_parser._name_from_phrase, transaction_parser._parse_block, transaction_parser.merchant_from_narration | calls: transaction_parser._display_name
-- `L249` `_is_id_word` — Reference numbers, masked cards/accounts, IFSC codes and VPAs: never part of a name.  
+- `L248` `_is_id_word` — Reference numbers, masked cards/accounts, IFSC codes and VPAs: never part of a name.  
   called by: transaction_parser._is_noise_word, transaction_parser._segment_name | calls: -
-- `L261` `_is_noise_word`  
+- `L260` `_is_noise_word`  
   called by: transaction_parser._segment_name | calls: transaction_parser._is_id_word
-- `L266` `_segment_name` — Drop ids anywhere, and transfer-kind words at the edges ("POS ... ", "ACH D").  
+- `L265` `_segment_name` — Drop ids anywhere, and transfer-kind words at the edges ("POS ... ", "ACH D").  
   called by: transaction_parser.merchant_from_narration | calls: transaction_parser._is_id_word, transaction_parser._is_noise_word
-- `L276` `_narration_vpa` — The VPA inside a narration. HDFC joins fields with "-" ("UPI-SWIGGY-SWIGGY@YBL-..."),  
+- `L275` `_narration_vpa` — The VPA inside a narration. HDFC joins fields with "-" ("UPI-SWIGGY-SWIGGY@YBL-..."),  
   called by: transaction_parser.merchant_from_narration | calls: -
-- `L286` `merchant_from_narration` — Clean merchant name (and VPA, if any) from a bank narration or UPI string.  
+- `L285` `merchant_from_narration` — Clean merchant name (and VPA, if any) from a bank narration or UPI string.  
   called by: transaction_parser._name_from_phrase, transaction_parser._parse_bank_table, transaction_parser._sms_merchant | calls: transaction_parser._narration_vpa, transaction_parser._display_name, transaction_parser._segment_name, transaction_parser._merchant_from_vpa
-- `L322` `_name_from_phrase` — Payee/payer text after "Paid to", "Received from", "To:" (cut at ids, amounts...).  
+- `L321` `_name_from_phrase` — Payee/payer text after "Paid to", "Received from", "To:" (cut at ids, amounts...).  
   called by: transaction_parser._parse_block, transaction_parser._sms_merchant | calls: transaction_parser._blank_dates, transaction_parser.merchant_from_narration, transaction_parser._display_name, transaction_parser._merchant_from_vpa
-- `L432` `_build_index`  
+- `L431` `_build_index`  
   called by: transaction_parser (module level) | calls: -
-- `L447` `_word_text` — Lower-case words separated by single spaces, padded: "Domino's-Pizza" -> " dominos pizza ".  
+- `L446` `_word_text` — Lower-case words separated by single spaces, padded: "Domino's-Pizza" -> " dominos pizza ".  
   called by: transaction_parser._keyword_category | calls: -
-- `L453` `_keyword_category` — Longest whole-word keyword match ("ola" never matches "hola" or "cola").  
+- `L452` `_keyword_category` — Longest whole-word keyword match ("ola" never matches "hola" or "cola").  
   called by: transaction_parser.categorize_transaction | calls: transaction_parser._word_text
-- `L473` `_vpa_words`  
+- `L472` `_vpa_words`  
   called by: transaction_parser._looks_like_person, transaction_parser.categorize_transaction | calls: -
-- `L477` `_looks_like_person`  
+- `L476` `_looks_like_person`  
   called by: transaction_parser.categorize_transaction | calls: transaction_parser._vpa_words
-- `L498` `_learned_category`  
+- `L497` `_learned_category`  
   called by: transaction_parser.categorize_transaction | calls: ~models.Merchant, ~models.Transaction
-- `L525` `categorize_transaction` — Pick a category, conservatively.  
+- `L524` `categorize_transaction` — Pick a category, conservatively.  
   called by: transaction_parser._finalise_rows | calls: transaction_parser._learned_category, transaction_parser._vpa_words, transaction_parser._keyword_category, transaction_parser._looks_like_person
-- `L646` `_is_period` — "Oct 01, 2025 - Oct 31, 2025" / "Period: 01/10/2025 to 31/10/2025".  
+- `L645` `_is_period` — "Oct 01, 2025 - Oct 31, 2025" / "Period: 01/10/2025 to 31/10/2025".  
   called by: transaction_parser._noise_reason, transaction_parser._parse_app_blocks, transaction_parser._parse_bank_table | calls: -
-- `L670` `_header_hits`  
+- `L669` `_header_hits`  
   called by: transaction_parser._is_bank_header, transaction_parser._is_table_header, transaction_parser._parse_bank_table | calls: -
-- `L674` `_is_table_header`  
+- `L673` `_is_table_header`  
   called by: transaction_parser._is_bank_header, transaction_parser._noise_reason, transaction_parser._parse_bank_table | calls: transaction_parser._header_hits
-- `L685` `_is_bank_header`  
+- `L684` `_is_bank_header`  
   called by: transaction_parser.detect_statement_format | calls: transaction_parser._header_hits, transaction_parser._is_table_header
-- `L694` `_noise_reason` — Why a (non-dated) line is not a transaction, or None if it might be one.  
+- `L693` `_noise_reason` — Why a (non-dated) line is not a transaction, or None if it might be one.  
   called by: transaction_parser._parse_app_blocks, transaction_parser._parse_bank_table | calls: transaction_parser._is_period, transaction_parser._is_table_header
-- `L719` `StatementParse` — Everything one parse produced: rows plus what was skipped and why (for debugging).  
+- `L718` `StatementParse` — Everything one parse produced: rows plus what was skipped and why (for debugging).  
   called by: transaction_parser._parse_app_blocks, transaction_parser._parse_bank_table, transaction_parser._parse_sms | calls: -
-- `L728` `_row`  
+- `L727` `_row`  
   called by: transaction_parser._parse_bank_table, transaction_parser._parse_block, transaction_parser._parse_line_entry | calls: -
-- `L775` `_block_account` — "Paid by XXXXXXXX1234" / "Paid with HDFC Bank 1234" -> the account text.  
+- `L774` `_block_account` — "Paid by XXXXXXXX1234" / "Paid with HDFC Bank 1234" -> the account text.  
   called by: transaction_parser._parse_block | calls: -
-- `L792` `_block_amount` — (amount, sign) from a block: currency-marked first, then a number next to DEBIT/CREDIT.  
+- `L791` `_block_amount` — (amount, sign) from a block: currency-marked first, then a number next to DEBIT/CREDIT.  
   called by: transaction_parser._parse_block | calls: transaction_parser._blank_dates, transaction_parser._to_float
-- `L814` `_parse_block`  
+- `L813` `_parse_block`  
   called by: transaction_parser._parse_app_blocks | calls: transaction_parser._block_amount, transaction_parser._name_from_phrase, transaction_parser._blank_dates, transaction_parser._merchant_from_vpa, transaction_parser._date_from_match, transaction_parser._row, transaction_parser._block_account
-- `L888` `_parse_app_blocks`  
+- `L887` `_parse_app_blocks`  
   called by: transaction_parser._parse_bhim, transaction_parser._parse_gpay, transaction_parser._parse_paytm, transaction_parser._parse_phonepe, transaction_parser.parse_statement_text | calls: transaction_parser.StatementParse, transaction_parser._leading_date, transaction_parser._is_period, transaction_parser._noise_reason, transaction_parser._parse_block
-- `L935` `_parse_phonepe` — PhonePe: "Oct 05, 2025 Paid to X DEBIT ₹450" + time, Transaction ID, UTR No, Paid by.  
+- `L934` `_parse_phonepe` — PhonePe: "Oct 05, 2025 Paid to X DEBIT ₹450" + time, Transaction ID, UTR No, Paid by.  
   called by: - | calls: transaction_parser._parse_app_blocks
-- `L940` `_parse_gpay` — Google Pay: "05 Oct, 2025 Paid to X ₹450.00" + time, UPI Transaction ID, Paid by/with.  
+- `L939` `_parse_gpay` — Google Pay: "05 Oct, 2025 Paid to X ₹450.00" + time, UPI Transaction ID, Paid by/with.  
   called by: - | calls: transaction_parser._parse_app_blocks
-- `L945` `_parse_paytm` — Paytm: "Paid to/Money sent to/Received from", "- Rs.450" signs, UPI Ref No, yearless dates.  
+- `L944` `_parse_paytm` — Paytm: "Paid to/Money sent to/Received from", "- Rs.450" signs, UPI Ref No, yearless dates.  
   called by: - | calls: transaction_parser._parse_app_blocks
-- `L950` `_parse_bhim` — BHIM: "Debit ₹450 To: payee@vpa UPI Ref No ..."; the payee is often only a VPA.  
+- `L949` `_parse_bhim` — BHIM: "Debit ₹450 To: payee@vpa UPI Ref No ..."; the payee is often only a VPA.  
   called by: - | calls: transaction_parser._parse_app_blocks
-- `L972` `_money_tokens`  
+- `L971` `_money_tokens`  
   called by: transaction_parser._bank_row_count, transaction_parser._parse_bank_table | calls: transaction_parser._blank_dates, transaction_parser._to_float
-- `L980` `_delta_type`  
+- `L979` `_delta_type`  
   called by: transaction_parser._parse_bank_table | calls: -
-- `L990` `_parse_bank_table`  
+- `L989` `_parse_bank_table`  
   called by: transaction_parser.parse_statement_text | calls: transaction_parser.StatementParse, transaction_parser._money_tokens, transaction_parser._is_table_header, transaction_parser._header_hits, transaction_parser._leading_date, transaction_parser._is_period, transaction_parser._noise_reason, +4 more
-- `L1196` `_sms_merchant`  
+- `L1195` `_sms_merchant`  
   called by: transaction_parser._parse_line_entry | calls: transaction_parser._name_from_phrase, transaction_parser.merchant_from_narration, transaction_parser._clean_merchant
-- `L1217` `_parse_line_entry`  
+- `L1216` `_parse_line_entry`  
   called by: transaction_parser._parse_sms | calls: transaction_parser._sms_merchant, transaction_parser._clean_merchant, transaction_parser._blank_dates, transaction_parser._to_float, transaction_parser._row, transaction_parser._parse_date
-- `L1262` `_sms_entries` — One entry per SMS: paragraphs when the text has blank lines, else one per line.  
+- `L1261` `_sms_entries` — One entry per SMS: paragraphs when the text has blank lines, else one per line.  
   called by: transaction_parser.parse_statement_text | calls: transaction_parser._normalize_line, transaction_parser._numbered_lines
-- `L1279` `_parse_sms`  
+- `L1278` `_parse_sms`  
   called by: transaction_parser.parse_receipt_text, transaction_parser.parse_statement_text | calls: transaction_parser.StatementParse, transaction_parser._parse_line_entry
-- `L1305` `_bank_row_count`  
+- `L1304` `_bank_row_count`  
   called by: transaction_parser.detect_statement_format | calls: transaction_parser._leading_date, transaction_parser._money_tokens
-- `L1313` `detect_statement_format` — Return "phonepe" | "gpay" | "paytm" | "bhim" | "bank_table" | "sms" | "generic".  
+- `L1312` `detect_statement_format` — Return "phonepe" | "gpay" | "paytm" | "bhim" | "bank_table" | "sms" | "generic".  
   called by: transaction_parser.parse_statement_text | calls: transaction_parser._numbered_lines, transaction_parser._is_bank_header, transaction_parser._bank_row_count
-- `L1359` `_finalise_rows`  
+- `L1358` `_finalise_rows`  
   called by: transaction_parser.parse_receipt_text, transaction_parser.parse_statement_text | calls: transaction_parser.categorize_transaction
-- `L1374` `parse_statement_text` — Parse extracted statement text. ``fmt`` forces a format; otherwise it is detected.  
+- `L1373` `parse_statement_text` — Parse extracted statement text. ``fmt`` forces a format; otherwise it is detected.  
   called by: transaction_parser.parse_statement_file | calls: transaction_parser.detect_statement_format, transaction_parser._guess_year, transaction_parser._parse_sms, transaction_parser._sms_entries, transaction_parser._numbered_lines, transaction_parser._parse_app_blocks, transaction_parser._parse_bank_table, +1 more
-- `L1410` `summarize_statement` — Counts, totals, date range, detected format and spend per category for a preview.  
+- `L1409` `summarize_statement` — Counts, totals, date range, detected format and spend per category for a preview.  
   called by: main._import_preview | calls: -
-- `L1447` `parse_receipt_text` — Parse forwarded bank SMS text, receipt text, or one statement row (one per line).  
+- `L1446` `parse_receipt_text` — Parse forwarded bank SMS text, receipt text, or one statement row (one per line).  
   called by: - | calls: transaction_parser._numbered_lines, transaction_parser._normalize_line, transaction_parser._parse_sms, transaction_parser._guess_year, transaction_parser._finalise_rows
-- `L1456` `_extract_pdf_text`  
+- `L1455` `_extract_pdf_text`  
   called by: transaction_parser.statement_text_from_file | calls: -
-- `L1475` `statement_text_from_file` — (text, source) for an upload; raises ValueError with a user-friendly message.  
+- `L1474` `statement_text_from_file` — (text, source) for an upload; raises ValueError with a user-friendly message.  
   called by: transaction_parser.parse_statement_file | calls: transaction_parser._extract_pdf_text
-- `L1498` `parse_statement_file` — Parse a PDF statement or text/SMS receipt into normalized transaction rows.  
+- `L1497` `parse_statement_file` — Parse a PDF statement or text/SMS receipt into normalized transaction rows.  
   called by: main._parse_upload | calls: transaction_parser.statement_text_from_file, transaction_parser.parse_statement_text
 
 ### `app/setup_wizard.py`
@@ -1377,19 +1377,19 @@ Cross-checked on 2026-10-16 against graphify's own graph of this project: it fou
   called by: setup_wizard.run_wizard | calls: envfile.read_env, setup_wizard.Console.say, setup_wizard.Console.yes, setup_wizard.detect_chat_id, setup_wizard._token_problem, setup_wizard.Console.ask, envfile.set_values
 - `L252` `step_database`  
   called by: setup_wizard.run_wizard | calls: setup_wizard.Console.say, setup_wizard.Console.ask, envfile.read_env, envfile.set_values
-- `L267` `step_tool_mode`  
+- `L269` `step_tool_mode`  
   called by: setup_wizard.run_wizard | calls: setup_wizard.Console.say, envfile.read_env, setup_wizard.Console.ask, envfile.set_values
-- `L276` `step_ai_key`  
+- `L278` `step_ai_key`  
   called by: setup_wizard.run_wizard | calls: setup_wizard.Console.say, setup_wizard.Console.ask, ai_gateway.extract_api_keys, ai_gateway.label, ai_gateway.validate_api_key, db.init_db, ai_gateway.add_api_key
-- `L309` `step_profile`  
+- `L311` `step_profile`  
   called by: setup_wizard.run_wizard | calls: config.bot_tokens, setup_wizard.Console.say, profile.apply_profile, setup_wizard._token_problem
-- `L348` `run_wizard`  
+- `L350` `run_wizard`  
   called by: firstrun.ensure_setup, setup_wizard.main | calls: setup_wizard.Console, setup_wizard.Console.say, setup_wizard.step_env_file, setup_wizard.step_secret, setup_wizard.step_telegram, setup_wizard.step_owner, setup_wizard.step_database, +4 more
-- `L377` `apply_defaults` — No questions: for scripts and containers. A strong secret, SQLite, a public bot.  
+- `L379` `apply_defaults` — No questions: for scripts and containers. A strong secret, SQLite, a public bot.  
   called by: setup_wizard.main | calls: setup_wizard.Console, setup_wizard.step_env_file, setup_wizard.step_secret, envfile.set_values, setup_wizard.Console.say
-- `L401` `doctor` — Health check: everything a first-time user can get wrong, in plain words.  
+- `L403` `doctor` — Health check: everything a first-time user can get wrong, in plain words.  
   called by: setup_wizard.main | calls: setup_wizard.Console, setup_wizard.Console.say, config.bot_tokens, setup_wizard.check_token, setup_wizard._token_problem, health.setup_problems, health.setup_notes, +3 more
-- `L444` `main`  
+- `L446` `main`  
   called by: setup (module level) | calls: setup_wizard.doctor, setup_wizard.apply_defaults, setup_wizard.run_wizard, setup_wizard.Console.say
 
 ### `app/web/dashboard.py`
